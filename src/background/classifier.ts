@@ -9,8 +9,11 @@ import { Effect, Schema } from 'effect';
 import type { Post, Trace, Verdict } from '../common/post';
 import {
   CLASSIFIER_REASON,
+  classifierKeyRequired,
+  classifierModel,
   classifierProviders,
   imagesWanted,
+  localClassifierBase,
   readVerdict,
   visionProvider,
   type ClassifierProvider,
@@ -62,13 +65,17 @@ const Description = Schema.Struct({
 /** The same image keeps coming back as a timeline scrolls; describe it once. */
 const descriptions = new Map<string, string>();
 
-export function decisionsUrl(settings: Pick<Settings, 'classifierProvider'>) {
-  return classifierProviders[settings.classifierProvider].url;
+export function decisionsUrl(settings: Pick<Settings, 'classifierProvider' | 'classifierBaseUrl'>) {
+  return settings.classifierProvider === 'local'
+    ? `${localClassifierBase(settings)}/v1/systemone`
+    : classifierProviders[settings.classifierProvider].url;
 }
 
 /** Headers for one of the classifier's providers, under that provider's key.
- *  Vercel's gateway takes the model in a header and speaks a versioned protocol. */
+ *  Vercel's gateway takes the model in a header and speaks a versioned protocol.
+ *  A local server takes no key. */
 function auth(settings: Settings, provider: ClassifierProvider, evaluation = false) {
+  if (provider === 'local') return { 'Content-Type': 'application/json' };
   const base = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${settings.apiKeys[provider] ?? ''}`,
@@ -184,7 +191,7 @@ export function decisionBody(settings: Settings, entries: readonly Entry[]) {
   });
   return {
     // Vercel's gateway names the model in a header.
-    ...(provider === 'vercel' ? {} : { model: classifierProviders[provider].model }),
+    ...(provider === 'vercel' ? {} : { model: classifierModel(settings) }),
     state: {
       ...(alone
         ? { post: shape(entries[0]!) }
@@ -331,7 +338,7 @@ function judge(settings: Settings, posts: readonly Post[]) {
       const text = second.has(i) ? first.get(i) : undefined;
       const trace: Trace = {
         source: 'classifier',
-        model: classifierProviders[settings.classifierProvider].model,
+        model: classifierModel(settings),
         at: Date.now(),
         totalMs,
         requestMs: final.pass.ms,
@@ -375,7 +382,11 @@ function judge(settings: Settings, posts: readonly Post[]) {
 
 export function classifyWithClassifier(settings: Settings, items: readonly Post[]) {
   return Effect.gen(function* () {
-    if (!settings.apiKeys[settings.classifierProvider] || !settings.criteria.trim()) {
+    if (
+      (classifierKeyRequired(settings.classifierProvider) &&
+        !settings.apiKeys[settings.classifierProvider]) ||
+      !settings.criteria.trim()
+    ) {
       return yield* new ProviderError({
         message: `Set a ${classifierProviders[settings.classifierProvider].label} key and filter criteria first.`,
       });

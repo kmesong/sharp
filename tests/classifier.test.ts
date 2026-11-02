@@ -268,6 +268,24 @@ it('reaches TypeSafe directly, and borrows another key for images', async () => 
   expect(visionProvider(defaults)).toBe('openrouter');
 });
 
+it('reaches a local classifier with no key, at its own URL and model', async () => {
+  const calls = stubOpenRouter(() => 0.9);
+  const local = {
+    ...defaults,
+    classifierProvider: 'local' as const,
+    classifierBaseUrl: 'http://192.168.2.100:8456/',
+    classifierModel: 'jev-latest',
+  };
+  const result = await Effect.runPromise(classify(local, [post('l1')]));
+  expect(result.verdicts[0]).toMatchObject({ hide: true, score: 0.9 });
+  expect(calls[0]!.url).toBe('http://192.168.2.100:8456/v1/systemone');
+  expect(calls[0]!.body.model).toBe('jev-latest');
+  // No key is sent, and none is needed to call the settings configured.
+  expect(vi.mocked(fetch).mock.calls[0]![1]!.headers).toEqual({ 'Content-Type': 'application/json' });
+  expect(publicSettings(local).configured).toBe(true);
+  expect(apiOrigins(local)).toEqual(['http://192.168.2.100:8456/*']);
+});
+
 it('asks permission for every origin the settings will call, and no more', () => {
   expect(apiOrigins(defaults)).toEqual(['https://openrouter.ai/*']);
   expect(apiOrigins({ ...defaults, classifierProvider: 'vercel' })).toEqual([

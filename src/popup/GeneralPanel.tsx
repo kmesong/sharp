@@ -77,6 +77,8 @@ const classifierNotes: Record<ClassifierProvider, string> = {
     'An AI Gateway key from your Vercel dashboard. It covers image descriptions too, and Vercel accounts come with some free monthly credit.',
   typesafe:
     'Straight from the people who make the classifier. It cannot describe images, so those use your OpenRouter or Vercel key if you have saved one.',
+  local:
+    'A classifier on your own network. Any server that speaks the TypeSafe /v1/systemone protocol works; no key is sent.',
 };
 
 export function GeneralPanel({
@@ -92,6 +94,7 @@ export function GeneralPanel({
   const openrouter = settings.provider === 'openrouter';
   const classifier = usesClassifier(settings);
   const source = classifierProviders[settings.classifierProvider];
+  const local = settings.classifierProvider === 'local';
 
   if (tab === 'appearance') {
     return (
@@ -249,24 +252,48 @@ export function GeneralPanel({
           ))}
         </select>
       </Field>
-      <KeyField
-        key={settings.classifierProvider}
-        id={settings.classifierProvider}
-        label={source.label}
-        settings={settings}
-        update={update}
-      />
+      {local ? (
+        <Field
+          label="Classifier base URL"
+          hint="Where it listens. The endpoint is /v1/systemone. Your browser asks for permission on save."
+        >
+          <input
+            type="url"
+            placeholder="http://192.168.2.100:8456"
+            value={settings.classifierBaseUrl}
+            onInput={(event) => update('classifierBaseUrl', event.currentTarget.value)}
+          />
+        </Field>
+      ) : (
+        <KeyField
+          key={settings.classifierProvider}
+          id={settings.classifierProvider}
+          label={source.label}
+          settings={settings}
+          update={update}
+        />
+      )}
       <p class="note tight">
         {classifierNotes[settings.classifierProvider]}{' '}
-        <a href={source.keys} target="_blank" rel="noreferrer noopener">
-          Get a key
-        </a>
+        {source.keys ? (
+          <a href={source.keys} target="_blank" rel="noreferrer noopener">
+            Get a key
+          </a>
+        ) : null}
         {settings.analyzeImages && !visionProvider(settings)
           ? ' No OpenRouter or Vercel key is saved, so images are skipped for now.'
           : ''}
       </p>
-      <Field label="Decision model" hint="Fixed. The classifier mode is built around it.">
-        <input value={source.model} disabled spellcheck={false} />
+      <Field
+        label="Decision model"
+        hint={local ? 'The model name your server expects.' : 'Fixed. The classifier mode is built around it.'}
+      >
+        <input
+          value={local ? settings.classifierModel : source.model}
+          disabled={!local}
+          spellcheck={false}
+          onInput={(event) => update('classifierModel', event.currentTarget.value)}
+        />
       </Field>
       <div class="actions">
         <button type="button" class="btn" disabled={busy} onClick={() => onTest('classifier')}>

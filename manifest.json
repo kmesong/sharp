@@ -11,9 +11,10 @@
     "https://m.youtube.com/*",
     "https://openrouter.ai/*",
     "https://api.openai.com/*",
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "http://192.168.2.100:8456/*"
   ],
-  "optional_host_permissions": ["https://*/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

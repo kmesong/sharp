@@ -57,6 +57,7 @@ const covers = (granted: string, origin: string) =>
   granted === origin ||
   granted === '<all_urls>' ||
   granted === 'https://*/*' ||
+  granted === 'http://*/*' ||
   granted === '*://*/*';
 
 /** Makes sure the browser lets Sharp reach these origins, asking only for the
@@ -298,6 +299,20 @@ export function App() {
           throw new Error('Use an HTTPS base URL without credentials, query or fragment.');
         }
       }
+      // A local classifier is usually plain HTTP on the lan, which is the whole
+      // point, so only the shape is checked here.
+      if (next.classifierProvider === 'local') {
+        const url = new URL(next.classifierBaseUrl.trim());
+        if (
+          !/^https?:$/.test(url.protocol) ||
+          url.username ||
+          url.password ||
+          url.search ||
+          url.hash
+        ) {
+          throw new Error('Use an HTTP or HTTPS base URL without credentials, query or fragment.');
+        }
+      }
       // Every origin these settings will call. The first await in this handler:
       // Firefox drops the user's gesture, and with it the right to prompt, at
       // any earlier one.
@@ -345,7 +360,8 @@ export function App() {
     });
 
   const connected = usesClassifier(saved)
-    ? Boolean(saved.apiKeys[saved.classifierProvider])
+    ? Boolean(saved.apiKeys[saved.classifierProvider]) ||
+      saved.classifierProvider === 'local'
     : Boolean(saved.apiKeys[saved.provider] && saved.model);
   const footer = dirty || busy || Boolean(message);
 

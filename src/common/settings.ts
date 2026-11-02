@@ -12,7 +12,7 @@ export const Provider = Schema.Literal('openrouter', 'openai', 'anthropic', 'cus
 export type Provider = typeof Provider.Type;
 /** Where the classifier is reached. It has a key of its own, apart from the
  *  chat model's, so either can be set up without the other. */
-export const ClassifierProvider = Schema.Literal('openrouter', 'vercel', 'typesafe');
+export const ClassifierProvider = Schema.Literal('openrouter', 'vercel', 'typesafe', 'local');
 export type ClassifierProvider = typeof ClassifierProvider.Type;
 export const ListKey = Schema.Literal(
   'allowedAuthors',
@@ -57,6 +57,10 @@ export const Settings = Schema.Struct({
   /** Who makes the hide-or-show call: a decision model, or a chat model. */
   decisionMode: Schema.Literal('classifier', 'llm'),
   classifierProvider: ClassifierProvider,
+  /** Used by the `local` provider only: where it listens, and the model name it
+   *  answers to. Both are the reader's own server's business. */
+  classifierBaseUrl: Schema.String.pipe(Schema.maxLength(300)),
+  classifierModel: Schema.String.pipe(Schema.maxLength(120)),
   /** A classifier hides a post it scores at or over this. */
   hideFrom: Schema.Number.pipe(Schema.clamp(0, 1)),
   /** A hide within this much of `hideFrom` is a close call. */
@@ -116,6 +120,8 @@ export const defaults: Settings = {
   filterComments: false,
   decisionMode: 'classifier',
   classifierProvider: 'openrouter',
+  classifierBaseUrl: 'http://192.168.2.100:8456',
+  classifierModel: 'jev-latest',
   hideFrom: 0.5,
   closeCallMargin: 0.3,
   visionModel: DEFAULT_VISION_MODEL,
@@ -209,10 +215,54 @@ export const classifierProviders = {
     chat: '',
     keys: 'https://typesafe.ai',
   },
+  // Your own machine, speaking the TypeSafe protocol. No key, no vendor, and a
+  // base URL only known once the reader types it (see `classifierOrigin`).
+  local: {
+    label: 'Local',
+    model: '',
+    origin: '',
+    url: '',
+    chat: '',
+    keys: '',
+  },
 } satisfies Record<
   ClassifierProvider,
   { label: string; model: string; origin: string; url: string; chat: string; keys: string }
 >;
+
+/** The local classifier's base URL, without a trailing slash. */
+export function localClassifierBase(settings: Pick<Settings, 'classifierBaseUrl'>): string {
+  return settings.classifierBaseUrl.trim().replace(/\/+$/, '');
+}
+
+/** The model name the configured classifier answers to. Every hosted provider
+ *  fixes it; a local server is the reader's own. */
+export function classifierModel(
+  settings: Pick<Settings, 'classifierProvider' | 'classifierModel'>,
+): string {
+  return settings.classifierProvider === 'local'
+    ? settings.classifierModel.trim()
+    : classifierProviders[settings.classifierProvider].model;
+}
+
+/** Only the hosted classifiers need a key; a local server is reached as-is. */
+export function classifierKeyRequired(provider: ClassifierProvider): boolean {
+  return provider !== 'local';
+}
+
+/** Where the classifier is reached, as a permission pattern. */
+export function classifierOrigin(
+  settings: Pick<Settings, 'classifierProvider' | 'classifierBaseUrl'>,
+): string {
+  if (settings.classifierProvider !== 'local') {
+    return classifierProviders[settings.classifierProvider].origin;
+  }
+  try {
+    return `${new URL(localClassifierBase(settings)).origin}/*`;
+  } catch {
+    return '';
+  }
+}
 
 /** Who describes images for the classifier: its own provider where that has a
  *  chat endpoint, otherwise whichever of the others has a key. */
@@ -229,6 +279,7 @@ export function apiOrigins(
     Settings,
     | 'decisionMode'
     | 'classifierProvider'
+    | 'classifierBaseUrl'
     | 'apiKeys'
     | 'analyzeImages'
     | 'provider'
@@ -239,10 +290,10 @@ export function apiOrigins(
   const vision = settings.analyzeImages ? visionProvider(settings) : null;
   return [
     ...new Set([
-      classifierProviders[settings.classifierProvider].origin,
+      classifierOrigin(settings),
       ...(vision ? [classifierProviders[vision].origin] : []),
     ]),
-  ];
+  ].filter(Boolean);
 }
 
 /** The origin the configured provider is reached at, if it has a usable one. A
@@ -330,7 +381,7 @@ export function publicSettings(settings: Settings): PublicSettings {
     ...rest,
     configured: Boolean(
       (usesClassifier(settings)
-        ? apiKeys[settings.classifierProvider]
+        ? apiKeys[settings.classifierProvider] || !classifierKeyRequired(settings.classifierProvider)
         : apiKeys[settings.provider] && settings.model) && settings.criteria.trim(),
     ),
   };
@@ -353,6 +404,8 @@ export function decisionScope(settings: PublicSettings | Settings): string {
       PROMPT_VERSION,
       'classifier',
       CLASSIFIER_MODEL,
+      classifierModel(settings),
+      settings.classifierProvider === 'local' ? localClassifierBase(settings) : '',
       settings.criteria,
       settings.analyzeImages,
       settings.maxImagesPerPost,
