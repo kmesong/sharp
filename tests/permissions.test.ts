@@ -27,6 +27,9 @@ it('never shows a prompt for origins the browser already allows', async () => {
   // A grant that covers every site covers this one too.
   await ensureOrigins(['https://api.typesafe.ai/*'], ['https://*/*']);
   expect(requested).toEqual([]);
+  // A local classifier is plain HTTP, so the HTTP catch-all counts too.
+  await ensureOrigins(['http://192.168.2.100:8456/*'], ['https://*/*', 'http://*/*']);
+  expect(requested).toEqual([]);
 });
 
 it('asks only for what is missing, synchronously, while the gesture is still live', async () => {
