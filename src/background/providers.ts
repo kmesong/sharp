@@ -65,12 +65,15 @@ function fetchJson(settings: Settings, path: string, body?: unknown) {
 }
 
 /** The provider's key and error handling, for a URL outside its usual base.
- *  `auth` replaces the chat provider's headers, for a request under another key. */
+ *  `auth` replaces the chat provider's headers, for a request under another key.
+ *  `seconds` is the reader's patience: a local model takes far longer per batch
+ *  than a hosted one. */
 export function requestJson(
   settings: Settings,
   url: string,
   body?: unknown,
   auth?: Record<string, string>,
+  seconds = 25,
 ) {
   return Effect.tryPromise({
     try: async (signal) => {
@@ -106,8 +109,8 @@ export function requestJson(
       }),
   }).pipe(
     Effect.timeoutFail({
-      duration: '25 seconds',
-      onTimeout: () => new ProviderError({ message: 'Provider timed out after 25 seconds.' }),
+      duration: `${seconds} seconds`,
+      onTimeout: () => new ProviderError({ message: `Provider timed out after ${seconds} seconds.` }),
     }),
   );
 }

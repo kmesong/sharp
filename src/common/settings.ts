@@ -61,6 +61,9 @@ export const Settings = Schema.Struct({
    *  answers to. Both are the reader's own server's business. */
   classifierBaseUrl: Schema.String.pipe(Schema.maxLength(300)),
   classifierModel: Schema.String.pipe(Schema.maxLength(120)),
+  /** How long to wait for a decision, in seconds. A local model answers one
+   *  batch in tens of seconds; a hosted one in a second or two. */
+  classifierTimeout: boundedInt(5, 600),
   /** A classifier hides a post it scores at or over this. */
   hideFrom: Schema.Number.pipe(Schema.clamp(0, 1)),
   /** A hide within this much of `hideFrom` is a close call. */
@@ -122,6 +125,7 @@ export const defaults: Settings = {
   classifierProvider: 'openrouter',
   classifierBaseUrl: 'http://192.168.2.100:8456',
   classifierModel: 'jev-latest',
+  classifierTimeout: 120,
   hideFrom: 0.5,
   closeCallMargin: 0.3,
   visionModel: DEFAULT_VISION_MODEL,

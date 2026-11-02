@@ -234,6 +234,7 @@ function decide(settings: Settings, entries: readonly Entry[]) {
       decisionsUrl(settings),
       body,
       auth(settings, settings.classifierProvider, true),
+      settings.classifierTimeout,
     );
     const ms = performance.now() - started;
     const data = yield* Schema.decodeUnknown(Decision)(raw).pipe(

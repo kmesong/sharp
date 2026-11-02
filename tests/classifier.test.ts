@@ -1,7 +1,7 @@
 import { Effect, Schema } from 'effect';
 import { afterEach, expect, it, vi } from 'vitest';
 import { CLASSIFIER_REASON, decisionsUrl, verdictFor } from '../src/background/classifier';
-import { classify } from '../src/background/providers';
+import { classify, requestJson } from '../src/background/providers';
 import {
   apiOrigins,
   CLASSIFIER_MODEL,
@@ -284,6 +284,19 @@ it('reaches a local classifier with no key, at its own URL and model', async () 
   expect(vi.mocked(fetch).mock.calls[0]![1]!.headers).toEqual({ 'Content-Type': 'application/json' });
   expect(publicSettings(local).configured).toBe(true);
   expect(apiOrigins(local)).toEqual(['http://192.168.2.100:8456/*']);
+});
+
+it('waits as long as the reader allows, and no longer', async () => {
+  // A local model takes tens of seconds per batch; the wait is the reader's to set.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => new Promise<Response>(() => {})),
+  );
+  const started = performance.now();
+  await expect(
+    Effect.runPromise(requestJson(defaults, 'http://192.168.2.100:8456/v1/systemone', {}, {}, 1)),
+  ).rejects.toThrow('Provider timed out after 1 seconds.');
+  expect(performance.now() - started).toBeLessThan(4000);
 });
 
 it('asks permission for every origin the settings will call, and no more', () => {

@@ -253,17 +253,33 @@ export function GeneralPanel({
         </select>
       </Field>
       {local ? (
-        <Field
-          label="Classifier base URL"
-          hint="Where it listens. The endpoint is /v1/systemone. Your browser asks for permission on save."
-        >
-          <input
-            type="url"
-            placeholder="http://192.168.2.100:8456"
-            value={settings.classifierBaseUrl}
-            onInput={(event) => update('classifierBaseUrl', event.currentTarget.value)}
-          />
-        </Field>
+        <>
+          <Field
+            label="Classifier base URL"
+            hint="Where it listens. The endpoint is /v1/systemone. Your browser asks for permission on save."
+          >
+            <input
+              type="url"
+              placeholder="http://192.168.2.100:8456"
+              value={settings.classifierBaseUrl}
+              onInput={(event) => update('classifierBaseUrl', event.currentTarget.value)}
+            />
+          </Field>
+          <Field
+            label="Timeout (seconds)"
+            hint="A local model answers one batch in tens of seconds. Raise this if the placeholder stays up."
+          >
+            <input
+              type="number"
+              min={5}
+              max={600}
+              value={settings.classifierTimeout}
+              onInput={(event) =>
+                update('classifierTimeout', Number(event.currentTarget.value) || 5)
+              }
+            />
+          </Field>
+        </>
       ) : (
         <KeyField
           key={settings.classifierProvider}
