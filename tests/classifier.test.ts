@@ -283,7 +283,7 @@ it('reaches a local classifier with no key, at its own URL and model', async () 
   // No key is sent, and none is needed to call the settings configured.
   expect(vi.mocked(fetch).mock.calls[0]![1]!.headers).toEqual({ 'Content-Type': 'application/json' });
   expect(publicSettings(local).configured).toBe(true);
-  expect(apiOrigins(local)).toEqual(['http://192.168.2.100:8456/*']);
+  expect(apiOrigins(local)).toEqual(["http://192.168.2.100/*"]);
 });
 
 it('waits as long as the reader allows, and no longer', async () => {

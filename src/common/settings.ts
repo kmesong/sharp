@@ -266,7 +266,10 @@ export function classifierOrigin(
     return classifierProviders[settings.classifierProvider].origin;
   }
   try {
-    return `${new URL(localClassifierBase(settings)).origin}/*`;
+    // A match pattern has no port: `http://host/*` covers every port on it, so
+    // the endpoint's port belongs to the request, never to the pattern.
+    const url = new URL(localClassifierBase(settings));
+    return `${url.protocol}//${url.hostname}/*`;
   } catch {
     return '';
   }
