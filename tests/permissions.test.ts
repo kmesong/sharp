@@ -30,6 +30,9 @@ it('never shows a prompt for origins the browser already allows', async () => {
   // A local classifier is plain HTTP, so the HTTP catch-all counts too.
   await ensureOrigins(['http://192.168.2.100:8456/*'], ['https://*/*', 'http://*/*']);
   expect(requested).toEqual([]);
+  // But the HTTPS wildcard says nothing about a plain-HTTP origin.
+  await ensureOrigins(['http://192.168.2.100:8456/*'], ['https://*/*']);
+  expect(requested).toEqual([['http://192.168.2.100:8456/*']]);
 });
 
 it('asks only for what is missing, synchronously, while the gesture is still live', async () => {

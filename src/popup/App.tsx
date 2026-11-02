@@ -52,13 +52,15 @@ export async function readerTab() {
 }
 
 /** Whether a granted pattern covers an origin. Sharp's own patterns are all
- *  `https://host/*`, so equality does it, plus the two that cover everything. */
+ *  `https://host/*`, so equality does it, plus the catch-alls that cover
+ *  everything. A wildcard covers only its own scheme: the HTTPS one says
+ *  nothing about a plain-HTTP classifier on the reader's own network. */
 const covers = (granted: string, origin: string) =>
   granted === origin ||
   granted === '<all_urls>' ||
-  granted === 'https://*/*' ||
-  granted === 'http://*/*' ||
-  granted === '*://*/*';
+  granted === '*://*/*' ||
+  (granted === 'https://*/*' && origin.startsWith('https://')) ||
+  (granted === 'http://*/*' && origin.startsWith('http://'));
 
 /** Makes sure the browser lets Sharp reach these origins, asking only for the
  *  ones not yet granted. Two rules meet here. The prompt needs a browser
@@ -498,6 +500,8 @@ export function App() {
               bytes={bytes}
               onBrowse={(view) => setOverlay({ kind: 'model', view })}
               onTest={(mode) => void run(() => request({ type: 'TEST_CONNECTION', mode }))}
+              missing={missing}
+              onGrant={grant}
               onClearCache={() =>
                 void run(async () => {
                   await request({ type: 'CLEAR_CACHE' });

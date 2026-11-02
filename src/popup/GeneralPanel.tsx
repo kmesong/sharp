@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import {
+  classifierOrigin,
   classifierProviders,
   providers,
   type ClassifierProvider,
@@ -18,6 +19,8 @@ type Props = SettingsEditor & {
   tab: GeneralTab;
   busy: boolean;
   bytes: number;
+  missing: readonly string[];
+  onGrant: () => void;
   onBrowse: (view: 'models' | 'providers') => void;
   onTest: (mode: 'classifier' | 'llm') => void;
   onClearCache: () => void;
@@ -87,6 +90,8 @@ export function GeneralPanel({
   tab,
   busy,
   bytes,
+  missing,
+  onGrant,
   onBrowse,
   onTest,
   onClearCache,
@@ -95,6 +100,10 @@ export function GeneralPanel({
   const classifier = usesClassifier(settings);
   const source = classifierProviders[settings.classifierProvider];
   const local = settings.classifierProvider === 'local';
+  /** Firefox grants site access per origin, and a plain-HTTP classifier on the
+   *  reader's own network is one it has to ask about. Without the grant the
+   *  request fails as a network error, which reads like the server is down. */
+  const ungranted = classifierOrigin(settings);
 
   if (tab === 'appearance') {
     return (
@@ -279,6 +288,14 @@ export function GeneralPanel({
               }
             />
           </Field>
+          {missing.includes(ungranted) && (
+            <div class="status-row">
+              <span class="value">{`No access to ${ungranted.replace(/^https?:\/\//, '').replace(/\/\*$/, '')} yet`}</span>
+              <button type="button" class="btn quiet small" onClick={onGrant}>
+                Grant access
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <KeyField

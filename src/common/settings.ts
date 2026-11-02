@@ -234,9 +234,13 @@ export const classifierProviders = {
   { label: string; model: string; origin: string; url: string; chat: string; keys: string }
 >;
 
-/** The local classifier's base URL, without a trailing slash. */
+/** The local classifier's base URL, without a trailing slash. A reader who
+ *  pastes the whole endpoint gets the same answer as one who pastes the host. */
 export function localClassifierBase(settings: Pick<Settings, 'classifierBaseUrl'>): string {
-  return settings.classifierBaseUrl.trim().replace(/\/+$/, '');
+  return settings.classifierBaseUrl
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/v1\/systemone$/, '');
 }
 
 /** The model name the configured classifier answers to. Every hosted provider

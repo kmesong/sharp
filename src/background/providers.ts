@@ -102,7 +102,10 @@ export function requestJson(
       new ProviderError({
         message:
           error instanceof TypeError
-            ? 'Could not reach the provider. Check your connection and endpoint permission.'
+            ? // The browser reports a refused or forbidden request as a network
+              // error, so name the origin: a typo, a wrong port and a missing
+              // permission all look like this.
+              `Could not reach ${url}. Check the connection, the URL, and that Sharp may access it.`
             : error instanceof Error
               ? error.message
               : 'Provider request failed.',
